@@ -1,0 +1,19 @@
+<package>
+  <description brief="openni2_user_selection">
+
+     User selection based on specific gesture (raise hand), with OpenNI2
+
+  </description>
+  <author>Ariandy Yoga Benggolo</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/openni2_user_selection</url>
+  <depend package="roscpp"/>
+  <depend package="roslib"/>
+  <depend package="kdl"/>
+  <depend package="tf"/>
+  <depend package="geometry_msgs"/>
+  
+</package>
+
+
