@@ -6,6 +6,7 @@
  * - stop tracking pose/gesture
  * - wrap activeUser object/variable
  * - review the whole scenario
+ * - ROS joints publishing
  */
 
 UserSelector::UserSelector()
