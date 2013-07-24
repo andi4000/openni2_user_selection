@@ -16,8 +16,10 @@ public:
 	virtual openni::Status init(int argc, char** argv);
 	virtual openni::Status run(); // does not return
 protected:
-	virtual void Display();
+	virtual void DisplayCallback();
 	virtual void DisplayPostDraw(){};
+	
+	virtual void OnKey(unsigned char key, int x, int y);
 	
 	virtual openni::Status InitOpenGL(int argc, char** argv);
 	void InitOpenGLHooks();
@@ -30,8 +32,10 @@ private:
 	
 	static void glutIdle();
 	static void glutDisplay();
+	static void glutKeyboard(unsigned char key, int x, int y);
+	
 	void updateUserState(const nite::UserData& user, unsigned long long ts);
-	nite::UserId getUserIdFromPixel(nite::Point3f position, const nite::UserMap& pUserMap);
+	nite::UserId getUserIdFromPixel(nite::Point3f position, const nite::UserMap& userMap);
 
 	static UserViewer* 	ms_self;
 	
@@ -46,6 +50,7 @@ private:
 	nite::HandTracker* 		m_pHandTracker;
 	ros::NodeHandle*		m_pNodeHandle;
 	nite::UserId			m_activeUserId;
+	nite::UserId			m_gesturingUser;
 	
 };
 

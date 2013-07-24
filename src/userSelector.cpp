@@ -97,7 +97,7 @@ void UserSelector::run()
 	
 	ROS_INFO("Start moving around to get detected!");
 	m_pHandTracker->startGestureDetection(nite::GESTURE_WAVE);
-	m_pHandTracker->startGestureDetection(nite::GESTURE_HAND_RAISE);
+	//m_pHandTracker->startGestureDetection(nite::GESTURE_HAND_RAISE);
 	
 	bool bSwitch = true;
 
