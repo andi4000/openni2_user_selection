@@ -19,6 +19,7 @@ class UserSelector
 		~UserSelector();
 		nite::Status init(int argc, char** argv);
 		void run();
+		void updateFrame();
 		
 	private:
 		void updateUserState(const nite::UserData& user, unsigned long long ts);

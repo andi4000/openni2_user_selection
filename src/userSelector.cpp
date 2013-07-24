@@ -1,13 +1,6 @@
 #include "userSelector.h"
 
-/**
- * TODO:
- * - GUI
- * - stop tracking pose/gesture
- * - wrap activeUser object/variable
- * - review the whole scenario
- * - ROS joints publishing
- */
+#define MAX_USERS 10
 
 UserSelector::UserSelector()
 {
@@ -192,3 +185,8 @@ void UserSelector::run()
 	}
 }
 // woot, nasty brackets!
+
+void UserSelector::updateFrame()
+{
+	
+}
