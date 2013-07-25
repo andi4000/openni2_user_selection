@@ -29,15 +29,16 @@ protected:
 private:
 	UserViewer(const UserViewer&);
 	UserViewer& operator=(UserViewer&);
-	
+
+
+	static UserViewer* 	ms_self;
+		
 	static void glutIdle();
 	static void glutDisplay();
 	static void glutKeyboard(unsigned char key, int x, int y);
 	
 	void updateUserState(const nite::UserData& user, unsigned long long ts);
 	nite::UserId getUserIdFromPixel(nite::Point3f position, const nite::UserMap& userMap);
-
-	static UserViewer* 	ms_self;
 	
 	float 					m_pDepthHist[MAX_DEPTH];
 	char 					m_strSampleName[ONI_MAX_STR];
@@ -51,7 +52,10 @@ private:
 	ros::NodeHandle*		m_pNodeHandle;
 	nite::UserId			m_activeUserId;
 	nite::UserId			m_gesturingUser;
+	const nite::UserData*	m_pActiveUserData;
 	
+	nite::UserId			m_exitPosingUser;
+	uint64_t				m_exitPoseTime;
 };
 
 #endif // _USERSELECTOR_VIEWER_H_

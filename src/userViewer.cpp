@@ -1,10 +1,18 @@
+/**
+#if (defined _WIN32)
+#define PRIu64 "llu"
+#else
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
+#endif
+*/
 
 #include "userViewer.h"
 #include <GL/glut.h>
 #include "NiteSampleUtilities.h"
 
-#define GL_WIN_SIZE_X 1024
-#define GL_WIN_SIZE_Y 768
+#define GL_WIN_SIZE_X 800
+#define GL_WIN_SIZE_Y 600
 #define TEXTURE_SIZE 512
 
 #define DEFAULT_DISPLAY_MODE	DISPLAY_MODE_DEPTH
@@ -13,6 +21,8 @@
 #define MIN_CHUNKS_SIZE(data_size, chunk_size)	(MIN_NUM_CHUNKS(data_size, chunk_size) * (chunk_size))
 
 UserViewer* UserViewer::ms_self = NULL;
+
+const int g_poseTimeoutToExit = 2000;
 
 int g_nXRes = 0, g_nYRes = 0;
 
@@ -32,10 +42,17 @@ UserViewer::UserViewer(const char* strName)
 	strncpy(m_strSampleName, strName, ONI_MAX_STR);
 	m_pUserTracker = new nite::UserTracker;
 	m_pHandTracker = new nite::HandTracker;
+	
+	m_activeUserId = 0;
+	m_pActiveUserData = NULL;
+	m_exitPosingUser = 0;
+	m_exitPoseTime = 0;
 }
 
 UserViewer::~UserViewer()
 {
+	delete m_pActiveUserData;
+
 	Finalize();
 	
 	delete[] m_pTexMap;
@@ -100,7 +117,6 @@ openni::Status UserViewer::init(int argc, char** argv)
 		return openni::STATUS_ERROR;
 	}
 	
-	m_activeUserId = 0;
 	
 	return InitOpenGL(argc, argv);
 }
@@ -115,7 +131,7 @@ openni::Status UserViewer::run()
 	return openni::STATUS_OK;
 }
 
-float Colors[][3] = {{1, 0, 0}, {0, 1, 0}, {1, 1, 1}};
+float Colors[][3] = {{1, 0, 0}, {0, 1, 0}, {0, 0, 1}, {1, 1, 1}};
 int colorCount = 3;
 
 #define MAX_USERS 10
@@ -127,7 +143,7 @@ char g_generalMessage[100] = {0};
 
 #define USER_MESSAGE(msg) {\
 	sprintf(g_userStatusLabels[user.getId()], "%s", msg);\
-	ROS_INFO("User #%d:\t%s", user.getId(), msg);\
+	ROS_INFO("User #%d: %s", user.getId(), msg);\
 	}
 
 void UserViewer::updateUserState(const nite::UserData& user, unsigned long long ts)
@@ -137,9 +153,9 @@ void UserViewer::updateUserState(const nite::UserData& user, unsigned long long 
 		USER_MESSAGE("New");
 	}
 	else if (user.isVisible() && !g_visibleUsers[user.getId()])
-		ROS_INFO("User #%d:\t%Visible", user.getId());
+		ROS_INFO("User #%d: Visible", user.getId());
 	else if (!user.isVisible() && g_visibleUsers[user.getId()])
-		ROS_INFO("User #%d:\tOut of scene", user.getId());
+		ROS_INFO("User #%d: Out of scene", user.getId());
 	else if (user.isLost())
 		USER_MESSAGE("Lost");
 		
@@ -302,7 +318,7 @@ void UserViewer::DisplayCallback()
 	openni::VideoFrameRef depthFrame;
 	
 	nite::Status rc;
-	
+
 	rc = m_pHandTracker->readFrame(&handTrackerFrame);
 	if (rc != nite::STATUS_OK)
 	{
@@ -318,7 +334,7 @@ void UserViewer::DisplayCallback()
 	}
 	
 	depthFrame = userTrackerFrame.getDepthFrame();
-	
+
 	if (m_pTexMap == NULL)
 	{
 		// texture map init
@@ -343,7 +359,7 @@ void UserViewer::DisplayCallback()
 	
 	memset(m_pTexMap, 0, m_nTexMapX * m_nTexMapY * sizeof(openni::RGB888Pixel));
 	
-	float factor[3] = {1, 1, 1};
+	float factor[3] = {0, 0, 0};
 	
 	if (depthFrame.isValid())
 	{
@@ -377,6 +393,10 @@ void UserViewer::DisplayCallback()
 					} // end if pLabels
 					
 					int nHistValue = m_pDepthHist[*pDepth];
+					/**
+					if (x == depthFrame.getWidth()/2 && y == depthFrame.getHeight()/2)
+						ROS_INFO("%d", nHistValue);
+					*/
 					pTex->r = nHistValue * factor[0];
 					pTex->g = nHistValue * factor[1];
 					pTex->b = nHistValue * factor[2];
@@ -424,7 +444,7 @@ void UserViewer::DisplayCallback()
 	// user detection routine
 	
 	const nite::Array<nite::UserData>& users = userTrackerFrame.getUsers();
-	nite::UserId gesturingUser;
+	nite::UserId gesturingUserId;
 	
 	if (users.getSize() > 0)
 	{
@@ -438,15 +458,48 @@ void UserViewer::DisplayCallback()
 			}
 			else if (gestures[i].isComplete() && gestures[i].getType() == nite::GESTURE_WAVE)
 			{
-				gesturingUser = getUserIdFromPixel(gestures[i].getCurrentPosition(), userTrackerFrame.getUserMap());
-				const nite::UserData* userTmp = userTrackerFrame.getUserById(gesturingUser);
-				if (userTmp->getSkeleton().getState() == nite::SKELETON_NONE)
+
+				gesturingUserId = getUserIdFromPixel(gestures[i].getCurrentPosition(), userTrackerFrame.getUserMap());
+				ROS_INFO("gesture finished from id = %d", gesturingUserId);
+				
+				const nite::UserData* userTmp = userTrackerFrame.getUserById(gesturingUserId);
+								
+				//m_pActiveUserData = userTrackerFrame.getUserById(gesturingUserId);
+				//if (m_pActiveUserData == NULL && userTmp->getSkeleton().getState() == nite::SKELETON_NONE)
+				if (m_activeUserId == 0 && userTmp->getSkeleton().getState() == nite::SKELETON_NONE)
 				{
 					//TODO: for above, is it better if != nite::SKELETON_TRACKED?
-					m_activeUserId = gesturingUser;
-					ROS_INFO("Gesture completed, now tracking User #%d", m_activeUserId);
+					m_activeUserId = gesturingUserId;
+					//m_pActiveUserData = userTrackerFrame.getUserById(gesturingUserId);
+					ROS_WARN("User #%d: Now active", m_activeUserId);
 					m_pUserTracker->startSkeletonTracking(m_activeUserId);
+					//m_pUserTracker->startPoseDetection(m_pActiveUserData->getId(), nite::POSE_PSI);
 					//TODO: stopGestureDetection here?
+				}
+				else
+				{
+					ROS_INFO("activation else");
+				}
+				ROS_INFO("active user id = %d", m_activeUserId);
+				//TODO: after first call, m_pActiveUserData goes crazy
+				//TODO: WHYYYYYYYYYYYYYYYYYYYYYYY
+				
+				//ROS_INFO("STATES: pointer %s, skeleton %s", (m_pActiveUserData != NULL)?"exist":"NULL", (userTmp->getSkeleton().getState() == nite::SKELETON_TRACKED)?"tracked":"not tracked");
+				
+				if (m_activeUserId != 0
+							&& gesturingUserId == m_activeUserId 
+							&& userTmp->getSkeleton().getState() == nite::SKELETON_TRACKED)
+				{
+					ROS_WARN("User #%d: No longer active", m_activeUserId);
+					m_pUserTracker->stopSkeletonTracking(m_activeUserId);
+					m_pActiveUserData = NULL;
+					m_activeUserId = 0;
+				}
+				else
+				{
+					ROS_INFO("not entering the exit loop");
+					//ROS_INFO("STATES: pointer %s, id %s, skeleton %s", (m_pActiveUserData == NULL)?"NULL":"EXIST", (gesturingUserId == m_pActiveUserData->getId())?"MATCH":"NOT MATCH", (m_pActiveUserData->getSkeleton().getState() == nite::SKELETON_TRACKED)?"TRACKED":"NOT TRACKED");
+					//ROS_INFO("id %d vs %d", gesturingUserId, m_pActiveUserData->getId());
 				}
 			}
 		}
@@ -461,8 +514,8 @@ void UserViewer::DisplayCallback()
 		
 		if (user.isNew())
 		{
-			// things here will be called only once
-			//TODO: maybe put startGestureDetection here?
+			// things here will be called only once for each user
+			//TODO: maybe put startGestureDetection here? --> not a good idea, it will call it for each user
 		}
 		else if (!user.isLost())
 		{
@@ -473,7 +526,38 @@ void UserViewer::DisplayCallback()
 				DrawSkeleton(m_pUserTracker, user);
 		}
 	}
-	
+/**	
+	if (m_pActiveUserData != NULL && m_pActiveUserData->getSkeleton().getState() == nite::SKELETON_TRACKED)
+	{
+		const nite::PoseData& pose = m_pActiveUserData->getPose(nite::POSE_PSI);
+		
+		if (pose.isEntered())
+		{
+			ROS_WARN("User #%d: Exit pose detected, hold for %d seconds to exit", m_pActiveUserData->getId(), g_poseTimeoutToExit);
+			m_exitPoseTime = userTrackerFrame.getTimestamp();
+		}
+		else if (pose.isExited())
+		{
+			ROS_WARN("User #%d: Exit pose canceled!", m_pActiveUserData->getId());
+			m_exitPoseTime = 0;
+		}
+		else if (pose.isHeld())
+		{
+			// ticking
+			ROS_INFO("ts = %d exitpose = %d", userTrackerFrame.getTimestamp(), m_exitPoseTime);
+			if (userTrackerFrame.getTimestamp() - m_exitPoseTime > g_poseTimeoutToExit*1000)
+			{
+				ROS_WARN("User #%d: No longer active/tracked", m_pActiveUserData->getId());
+				m_pUserTracker->stopPoseDetection(m_pActiveUserData->getId(), nite::POSE_PSI);
+				m_pUserTracker->stopSkeletonTracking(m_pActiveUserData->getId());
+				m_pActiveUserData = NULL;
+				//TODO: start gesture detection here?
+			}
+		}
+		
+		//TODO: publish joints here?
+	}
+*/	
 	glutSwapBuffers();
 }
 
