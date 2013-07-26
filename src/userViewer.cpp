@@ -44,15 +44,12 @@ UserViewer::UserViewer(const char* strName)
 	m_pHandTracker = new nite::HandTracker;
 	
 	m_activeUserId = 0;
-	m_pActiveUserData = NULL;
 	m_exitPosingUser = 0;
 	m_exitPoseTime = 0;
 }
 
 UserViewer::~UserViewer()
 {
-	delete m_pActiveUserData;
-
 	Finalize();
 	
 	delete[] m_pTexMap;
@@ -157,8 +154,14 @@ void UserViewer::updateUserState(const nite::UserData& user, unsigned long long 
 	else if (!user.isVisible() && g_visibleUsers[user.getId()])
 		ROS_INFO("User #%d: Out of scene", user.getId());
 	else if (user.isLost())
+	{
 		USER_MESSAGE("Lost");
-		
+		if (user.getId() == m_activeUserId)
+		{
+			m_activeUserId = 0;
+			ROS_WARN("User #%d: Lost, no longer active", user.getId());
+		}
+	}	
 	g_visibleUsers[user.getId()] = user.isVisible();
 	
 
@@ -463,28 +466,20 @@ void UserViewer::DisplayCallback()
 				ROS_INFO("gesture finished from id = %d", gesturingUserId);
 				
 				const nite::UserData* userTmp = userTrackerFrame.getUserById(gesturingUserId);
-								
-				//m_pActiveUserData = userTrackerFrame.getUserById(gesturingUserId);
-				//if (m_pActiveUserData == NULL && userTmp->getSkeleton().getState() == nite::SKELETON_NONE)
+					
 				if (m_activeUserId == 0 && userTmp->getSkeleton().getState() == nite::SKELETON_NONE)
 				{
 					//TODO: for above, is it better if != nite::SKELETON_TRACKED?
 					m_activeUserId = gesturingUserId;
-					//m_pActiveUserData = userTrackerFrame.getUserById(gesturingUserId);
 					ROS_WARN("User #%d: Now active", m_activeUserId);
 					m_pUserTracker->startSkeletonTracking(m_activeUserId);
-					//m_pUserTracker->startPoseDetection(m_pActiveUserData->getId(), nite::POSE_PSI);
 					//TODO: stopGestureDetection here?
 				}
 				else
 				{
-					ROS_INFO("activation else");
+					ROS_WARN("not entering activation loop");
 				}
-				ROS_INFO("active user id = %d", m_activeUserId);
-				//TODO: after first call, m_pActiveUserData goes crazy
-				//TODO: WHYYYYYYYYYYYYYYYYYYYYYYY
-				
-				//ROS_INFO("STATES: pointer %s, skeleton %s", (m_pActiveUserData != NULL)?"exist":"NULL", (userTmp->getSkeleton().getState() == nite::SKELETON_TRACKED)?"tracked":"not tracked");
+				//ROS_INFO("active user id = %d", m_activeUserId);
 				
 				if (m_activeUserId != 0
 							&& gesturingUserId == m_activeUserId 
@@ -492,14 +487,11 @@ void UserViewer::DisplayCallback()
 				{
 					ROS_WARN("User #%d: No longer active", m_activeUserId);
 					m_pUserTracker->stopSkeletonTracking(m_activeUserId);
-					m_pActiveUserData = NULL;
 					m_activeUserId = 0;
 				}
 				else
 				{
-					ROS_INFO("not entering the exit loop");
-					//ROS_INFO("STATES: pointer %s, id %s, skeleton %s", (m_pActiveUserData == NULL)?"NULL":"EXIST", (gesturingUserId == m_pActiveUserData->getId())?"MATCH":"NOT MATCH", (m_pActiveUserData->getSkeleton().getState() == nite::SKELETON_TRACKED)?"TRACKED":"NOT TRACKED");
-					//ROS_INFO("id %d vs %d", gesturingUserId, m_pActiveUserData->getId());
+					ROS_WARN("not entering the exit loop");
 				}
 			}
 		}
@@ -526,38 +518,7 @@ void UserViewer::DisplayCallback()
 				DrawSkeleton(m_pUserTracker, user);
 		}
 	}
-/**	
-	if (m_pActiveUserData != NULL && m_pActiveUserData->getSkeleton().getState() == nite::SKELETON_TRACKED)
-	{
-		const nite::PoseData& pose = m_pActiveUserData->getPose(nite::POSE_PSI);
-		
-		if (pose.isEntered())
-		{
-			ROS_WARN("User #%d: Exit pose detected, hold for %d seconds to exit", m_pActiveUserData->getId(), g_poseTimeoutToExit);
-			m_exitPoseTime = userTrackerFrame.getTimestamp();
-		}
-		else if (pose.isExited())
-		{
-			ROS_WARN("User #%d: Exit pose canceled!", m_pActiveUserData->getId());
-			m_exitPoseTime = 0;
-		}
-		else if (pose.isHeld())
-		{
-			// ticking
-			ROS_INFO("ts = %d exitpose = %d", userTrackerFrame.getTimestamp(), m_exitPoseTime);
-			if (userTrackerFrame.getTimestamp() - m_exitPoseTime > g_poseTimeoutToExit*1000)
-			{
-				ROS_WARN("User #%d: No longer active/tracked", m_pActiveUserData->getId());
-				m_pUserTracker->stopPoseDetection(m_pActiveUserData->getId(), nite::POSE_PSI);
-				m_pUserTracker->stopSkeletonTracking(m_pActiveUserData->getId());
-				m_pActiveUserData = NULL;
-				//TODO: start gesture detection here?
-			}
-		}
-		
-		//TODO: publish joints here?
-	}
-*/	
+	
 	glutSwapBuffers();
 }
 

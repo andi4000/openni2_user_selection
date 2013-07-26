@@ -52,7 +52,7 @@ private:
 	ros::NodeHandle*		m_pNodeHandle;
 	nite::UserId			m_activeUserId;
 	nite::UserId			m_gesturingUser;
-	const nite::UserData*	m_pActiveUserData;
+	//const nite::UserData*	m_pActiveUserData;
 	
 	nite::UserId			m_exitPosingUser;
 	uint64_t				m_exitPoseTime;
