@@ -338,6 +338,65 @@ void UserViewer::DisplayCallback()
 	
 	depthFrame = userTrackerFrame.getDepthFrame();
 
+
+	// user detection routine
+	
+	const nite::Array<nite::UserData>& users = userTrackerFrame.getUsers();
+	nite::UserId gesturingUserId;
+	
+	if (users.getSize() > 0)
+	{
+		const nite::Array<nite::GestureData>& gestures = handTrackerFrame.getGestures();
+		
+		for (int i = 0; i < gestures.getSize(); ++i)
+		{
+			if (gestures[i].isInProgress())
+			{
+				ROS_INFO("Gesture detected!");
+			}
+			else if (gestures[i].isComplete() && gestures[i].getType() == nite::GESTURE_WAVE)
+			{
+
+				gesturingUserId = getUserIdFromPixel(gestures[i].getCurrentPosition(), userTrackerFrame.getUserMap());
+				ROS_INFO("gesture finished from id = %d", gesturingUserId);
+				
+				const nite::UserData* userTmp = userTrackerFrame.getUserById(gesturingUserId);
+					
+				if (m_activeUserId == 0 && userTmp->getSkeleton().getState() == nite::SKELETON_NONE)
+				{
+					//TODO: for above, is it better if != nite::SKELETON_TRACKED?
+					m_activeUserId = gesturingUserId;
+					ROS_WARN("User #%d: Now active", m_activeUserId);
+					m_pUserTracker->startSkeletonTracking(m_activeUserId);
+					//TODO: stopGestureDetection here?
+				}
+				else
+				{
+					ROS_WARN("not entering activation loop");
+				}
+				//ROS_INFO("active user id = %d", m_activeUserId);
+				
+				if (m_activeUserId != 0
+							&& gesturingUserId == m_activeUserId 
+							&& userTmp->getSkeleton().getState() == nite::SKELETON_TRACKED)
+				{
+					ROS_WARN("User #%d: No longer active", m_activeUserId);
+					m_pUserTracker->stopSkeletonTracking(m_activeUserId);
+					m_activeUserId = 0;
+				}
+				else
+				{
+					ROS_WARN("not entering the exit loop");
+				}
+			}
+		}
+		
+		//TODO: exit pose
+	}
+
+
+// =================================================================
+
 	if (m_pTexMap == NULL)
 	{
 		// texture map init
@@ -444,61 +503,7 @@ void UserViewer::DisplayCallback()
 	glDisable(GL_TEXTURE_2D);
 	
 	
-	// user detection routine
-	
-	const nite::Array<nite::UserData>& users = userTrackerFrame.getUsers();
-	nite::UserId gesturingUserId;
-	
-	if (users.getSize() > 0)
-	{
-		const nite::Array<nite::GestureData>& gestures = handTrackerFrame.getGestures();
 		
-		for (int i = 0; i < gestures.getSize(); ++i)
-		{
-			if (gestures[i].isInProgress())
-			{
-				ROS_INFO("Gesture detected!");
-			}
-			else if (gestures[i].isComplete() && gestures[i].getType() == nite::GESTURE_WAVE)
-			{
-
-				gesturingUserId = getUserIdFromPixel(gestures[i].getCurrentPosition(), userTrackerFrame.getUserMap());
-				ROS_INFO("gesture finished from id = %d", gesturingUserId);
-				
-				const nite::UserData* userTmp = userTrackerFrame.getUserById(gesturingUserId);
-					
-				if (m_activeUserId == 0 && userTmp->getSkeleton().getState() == nite::SKELETON_NONE)
-				{
-					//TODO: for above, is it better if != nite::SKELETON_TRACKED?
-					m_activeUserId = gesturingUserId;
-					ROS_WARN("User #%d: Now active", m_activeUserId);
-					m_pUserTracker->startSkeletonTracking(m_activeUserId);
-					//TODO: stopGestureDetection here?
-				}
-				else
-				{
-					ROS_WARN("not entering activation loop");
-				}
-				//ROS_INFO("active user id = %d", m_activeUserId);
-				
-				if (m_activeUserId != 0
-							&& gesturingUserId == m_activeUserId 
-							&& userTmp->getSkeleton().getState() == nite::SKELETON_TRACKED)
-				{
-					ROS_WARN("User #%d: No longer active", m_activeUserId);
-					m_pUserTracker->stopSkeletonTracking(m_activeUserId);
-					m_activeUserId = 0;
-				}
-				else
-				{
-					ROS_WARN("not entering the exit loop");
-				}
-			}
-		}
-		
-		//TODO: exit pose
-	}
-	
 	for (int i = 0; i < users.getSize(); ++i)
 	{
 		const nite::UserData& user = users[i];

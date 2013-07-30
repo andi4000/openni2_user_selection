@@ -28,7 +28,9 @@ class UserSelector
 		nite::UserTracker* m_pUserTracker;
 		nite::HandTracker* m_pHandTracker;
 		ros::NodeHandle* m_pNodeHandle;
-		nite::UserId m_activeUserId;
+		nite::UserId			m_activeUserId;
+		nite::UserId			m_gesturingUser;
+	
 };
 
 #endif

@@ -43,29 +43,63 @@ UserSelector::~UserSelector()
 	ros::shutdown();
 }
 
+#define MAX_USERS 10
+bool g_visibleUsers[MAX_USERS] = {false};
+nite::SkeletonState g_skeletonStates[MAX_USERS] = {nite::SKELETON_NONE};
+char g_userStatusLabels[MAX_USERS][100] = {{0}};
+
+char g_generalMessage[100] = {0};
+
+#define USER_MESSAGE(msg) {\
+	sprintf(g_userStatusLabels[user.getId()], "%s", msg);\
+	ROS_INFO("User #%d: %s", user.getId(), msg);\
+	}
+
+//TODO: multiple global var declaration, fix!
+
 void UserSelector::updateUserState(const nite::UserData& user, unsigned long long ts)
 {
 	if (user.isNew())
 	{
-		ROS_INFO("User %d enters the scene", user.getId());
+		USER_MESSAGE("New");
 	}
-/**	else if (user.isVisible())
-	{
-		ROS_INFO("User %d is visible", user.getId());
-	}
-	else if (!user.isVisible())
-	{
-		ROS_INFO("User %d is out of scene", user.getId());
-	}*/
+	else if (user.isVisible() && !g_visibleUsers[user.getId()])
+		ROS_INFO("User #%d: Visible", user.getId());
+	else if (!user.isVisible() && g_visibleUsers[user.getId()])
+		ROS_INFO("User #%d: Out of scene", user.getId());
 	else if (user.isLost())
 	{
-		ROS_WARN("User %d is lost", user.getId());
-	}
+		USER_MESSAGE("Lost");
+		if (user.getId() == m_activeUserId)
+		{
+			m_activeUserId = 0;
+			ROS_WARN("User #%d: Lost, no longer active", user.getId());
+		}
+	}	
+	g_visibleUsers[user.getId()] = user.isVisible();
 	
-	if (user.getId() == m_activeUserId && user.isLost())
+
+	if(g_skeletonStates[user.getId()] != user.getSkeleton().getState())
 	{
-		ROS_WARN("Active user is lost");
-		m_activeUserId = 0;
+		switch(g_skeletonStates[user.getId()] = user.getSkeleton().getState())
+		{
+		case nite::SKELETON_NONE:
+			USER_MESSAGE("Stopped tracking.")
+			break;
+		case nite::SKELETON_CALIBRATING:
+			USER_MESSAGE("Calibrating...")
+			break;
+		case nite::SKELETON_TRACKED:
+			USER_MESSAGE("Tracking!")
+			break;
+		case nite::SKELETON_CALIBRATION_ERROR_NOT_IN_POSE:
+		case nite::SKELETON_CALIBRATION_ERROR_HANDS:
+		case nite::SKELETON_CALIBRATION_ERROR_LEGS:
+		case nite::SKELETON_CALIBRATION_ERROR_HEAD:
+		case nite::SKELETON_CALIBRATION_ERROR_TORSO:
+			USER_MESSAGE("Calibration Failed... :-|")
+			break;
+		}
 	}
 }
 
@@ -119,69 +153,79 @@ void UserSelector::run()
 		
 		const nite::Array<nite::UserData>& users = userTrackerFrame.getUsers();
 
-		for (int i = 0; i < users.getSize(); ++i)
+		nite::UserId gesturingUserId;
+		
+		if (users.getSize() > 0)
 		{
-			const nite::UserData& user = users[i];
-			updateUserState(user, userTrackerFrame.getTimestamp());
-		}
-
-		if (users.getSize() != 0){
-	
-			if (bSwitch){
-				ROS_INFO("start waving to be tracked!");
-				bSwitch = !bSwitch;
-			}
 			const nite::Array<nite::GestureData>& gestures = handTrackerFrame.getGestures();
+			
 			for (int i = 0; i < gestures.getSize(); ++i)
 			{
 				if (gestures[i].isInProgress())
 				{
 					ROS_INFO("Gesture detected!");
 				}
-				else if (gestures[i].isComplete())
+				else if (gestures[i].isComplete() && gestures[i].getType() == nite::GESTURE_WAVE)
 				{
-					if (gestures[i].getType() == nite::GESTURE_WAVE){
-						gesturingUser = getUserIdFromPixel(gestures[i].getCurrentPosition(), userTrackerFrame.getUserMap());
-						const nite::UserData* userTmp = userTrackerFrame.getUserById(gesturingUser);
-						if (userTmp->getSkeleton().getState() != nite::SKELETON_TRACKED){
-							m_activeUserId = gesturingUser;
-							ROS_INFO("Gesture completed, now tracking User %d", m_activeUserId);
-							m_pUserTracker->startSkeletonTracking(m_activeUserId);
-							//m_pHandTracker->stopGestureDetection(nite::GESTURE_WAVE);
-						}
-					}
+
+					gesturingUserId = getUserIdFromPixel(gestures[i].getCurrentPosition(), userTrackerFrame.getUserMap());
+					ROS_INFO("gesture finished from id = %d", gesturingUserId);
 					
-					/**
-					 * TODO: exit pose, this seems redundant since wave starts with hand raise
-					if (gestures[i].getType() == nite::GESTURE_HAND_RAISE){
-						gesturingUser = getUserIdFromPixel(gestures[i].getCurrentPosition(), userTrackerFrame.getUserMap());
-						if (gesturingUser == m_activeUserId){
-							m_pUserTracker->stopSkeletonTracking(gesturingUser);
-							m_activeUserId = 0;
-						}
+					const nite::UserData* userTmp = userTrackerFrame.getUserById(gesturingUserId);
+						
+					if (m_activeUserId == 0 && userTmp->getSkeleton().getState() == nite::SKELETON_NONE)
+					{
+						//TODO: for above, is it better if != nite::SKELETON_TRACKED?
+						m_activeUserId = gesturingUserId;
+						ROS_WARN("User #%d: Now active", m_activeUserId);
+						m_pUserTracker->startSkeletonTracking(m_activeUserId);
+						//TODO: stopGestureDetection here?
 					}
-					*/
+					else
+					{
+						ROS_WARN("not entering activation loop");
+					}
+					//ROS_INFO("active user id = %d", m_activeUserId);
+					
+					if (m_activeUserId != 0
+								&& gesturingUserId == m_activeUserId 
+								&& userTmp->getSkeleton().getState() == nite::SKELETON_TRACKED)
+					{
+						ROS_WARN("User #%d: No longer active", m_activeUserId);
+						m_pUserTracker->stopSkeletonTracking(m_activeUserId);
+						m_activeUserId = 0;
+					}
+					else
+					{
+						ROS_WARN("not entering the exit loop");
+					}
 				}
 			}
 			
-			if (m_activeUserId != 0)
+			//TODO: exit pose
+		}
+
+		for (int i = 0; i < users.getSize(); ++i)
+		{
+			const nite::UserData& user = users[i];
+			updateUserState(user, userTrackerFrame.getTimestamp());
+			
+			if (user.isNew())
 			{
-				const nite::UserData* userTmp = userTrackerFrame.getUserById(m_activeUserId);
-				if (userTmp->isVisible()){
-					if (userTmp->getSkeleton().getState() == nite::SKELETON_TRACKED){
-						const nite::SkeletonJoint& torso = userTmp->getSkeleton().getJoint(nite::JOINT_TORSO);
-						if (torso.getPositionConfidence() > .5)
-							ROS_INFO("Torso_%d: %.2f %.2f %.2f", m_activeUserId, torso.getPosition().x, torso.getPosition().y, torso.getPosition().z);
-						else
-							ROS_INFO("pos confidence %.2f", torso.getPositionConfidence());
-					} else {
-						ROS_INFO("still tracking..");
-					}
-				} else {
-					//what?
-				}
+				// things here will be called only once for each user
+				//TODO: maybe put startGestureDetection here? --> not a good idea, it will call it for each user
+			}
+			else if (!user.isLost())
+			{
+				// things here for when user is present on the FOV
+				//DrawStatusLabel(m_pUserTracker, user);
+				
+				//if (users[i].getSkeleton().getState() == nite::SKELETON_TRACKED)
+					//DrawSkeleton(m_pUserTracker, user);
 			}
 		}
+		
+
 	}
 }
 // woot, nasty brackets!
