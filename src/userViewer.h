@@ -15,6 +15,7 @@ public:
 	
 	virtual openni::Status init(int argc, char** argv);
 	virtual openni::Status run(); // does not return
+	void updateFrame();
 protected:
 	virtual void DisplayCallback();
 	virtual void DisplayPostDraw(){};
@@ -29,7 +30,6 @@ protected:
 private:
 	UserViewer(const UserViewer&);
 	UserViewer& operator=(UserViewer&);
-
 
 	static UserViewer* 	ms_self;
 		

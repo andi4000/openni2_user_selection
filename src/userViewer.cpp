@@ -314,10 +314,19 @@ nite::UserId UserViewer::getUserIdFromPixel(nite::Point3f position, const nite::
 	return userId;
 }
 
+void UserViewer::updateFrame()
+{
+	//TODO: 
+	// - test if non GUI routine can be moved here
+}
+
 void UserViewer::DisplayCallback()
 {
+	//TODO: this needs to be pointer
 	nite::UserTrackerFrameRef userTrackerFrame;
 	nite::HandTrackerFrameRef handTrackerFrame;
+	
+	//TODO: this stays here
 	openni::VideoFrameRef depthFrame;
 	
 	nite::Status rc;

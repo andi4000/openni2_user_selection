@@ -11,7 +11,7 @@
  * - ROS joints publishing
  */
 
-//#define USE_GUI
+#define USE_GUI
 #ifdef USE_GUI
 	#include "userViewer.h"
 #else

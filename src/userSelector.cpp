@@ -42,7 +42,7 @@ UserSelector::~UserSelector()
 	nite::NiTE::shutdown();
 	ros::shutdown();
 }
-
+/**
 #define MAX_USERS 10
 bool g_visibleUsers[MAX_USERS] = {false};
 nite::SkeletonState g_skeletonStates[MAX_USERS] = {nite::SKELETON_NONE};
@@ -54,11 +54,13 @@ char g_generalMessage[100] = {0};
 	sprintf(g_userStatusLabels[user.getId()], "%s", msg);\
 	ROS_INFO("User #%d: %s", user.getId(), msg);\
 	}
-
+*/
 //TODO: multiple global var declaration, fix!
 
 void UserSelector::updateUserState(const nite::UserData& user, unsigned long long ts)
 {
+	//TODO: fix this
+	/**
 	if (user.isNew())
 	{
 		USER_MESSAGE("New");
@@ -101,6 +103,7 @@ void UserSelector::updateUserState(const nite::UserData& user, unsigned long lon
 			break;
 		}
 	}
+	*/
 }
 
 nite::UserId UserSelector::getUserIdFromPixel(nite::Point3f position, const nite::UserMap& userMap)
