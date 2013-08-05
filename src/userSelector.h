@@ -4,6 +4,7 @@
 #include "ros/ros.h"
 #include "NiTE.h"
 
+#define MAX_USERS 10
 
 class UserSelector
 {
@@ -17,20 +18,32 @@ class UserSelector
 		};
 		UserSelector();
 		~UserSelector();
-		nite::Status init(int argc, char** argv);
+		nite::Status init(int argc, char** argv, openni::Device* pDevice = NULL);
 		void run();
 		void updateFrame();
+		void detectionRoutine();
+		
+		char* getUserStatusLabel(nite::UserId id);
+		
+		nite::UserTrackerFrameRef* getUserTrackerFrame();
+		nite::HandTrackerFrameRef* getHandTrackerFrame();
+		
+		nite::UserTracker* getUserTracker();
+		nite::HandTracker* getHandTracker();
 		
 	private:
 		void updateUserState(const nite::UserData& user, unsigned long long ts);
 		nite::UserId getUserIdFromPixel(nite::Point3f position, const nite::UserMap& userMap);
 		
-		nite::UserTracker* m_pUserTracker;
-		nite::HandTracker* m_pHandTracker;
-		ros::NodeHandle* m_pNodeHandle;
-		nite::UserId			m_activeUserId;
-		nite::UserId			m_gesturingUser;
-	
+		nite::UserTrackerFrameRef* 		m_pUserTrackerFrame;
+		nite::HandTrackerFrameRef* 		m_pHandTrackerFrame;
+		
+		nite::UserTracker* 				m_pUserTracker;
+		nite::HandTracker* 				m_pHandTracker;
+		
+		ros::NodeHandle* 				m_pNodeHandle;
+		nite::UserId					m_activeUserId;
+		nite::UserId					m_gesturingUser;
 };
 
 #endif

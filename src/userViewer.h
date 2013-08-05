@@ -2,8 +2,9 @@
 #ifndef _USERSELECTOR_VIEWER_H_
 #define _USERSELECTOR_VIEWER_H_
 
-#include "ros/ros.h"
-#include "NiTE.h"
+//#include "ros/ros.h"
+//#include "NiTE.h"
+#include "userSelector.h"
 
 #define MAX_DEPTH 10000
 
@@ -13,9 +14,10 @@ public:
 	UserViewer(const char* strName);
 	virtual ~UserViewer();
 	
-	virtual openni::Status init(int argc, char** argv);
+	virtual openni::Status init(int argc, char** argv, UserSelector* pUserSelectorObj = NULL);
 	virtual openni::Status run(); // does not return
 	void updateFrame();
+	void detectionRoutine();
 protected:
 	virtual void DisplayCallback();
 	virtual void DisplayPostDraw(){};
@@ -39,6 +41,9 @@ private:
 	
 	void updateUserState(const nite::UserData& user, unsigned long long ts);
 	nite::UserId getUserIdFromPixel(nite::Point3f position, const nite::UserMap& userMap);
+
+	nite::UserTrackerFrameRef* m_pUserTrackerFrame;
+	nite::HandTrackerFrameRef* m_pHandTrackerFrame;
 	
 	float 					m_pDepthHist[MAX_DEPTH];
 	char 					m_strSampleName[ONI_MAX_STR];
@@ -56,6 +61,8 @@ private:
 	
 	nite::UserId			m_exitPosingUser;
 	uint64_t				m_exitPoseTime;
+	
+	UserSelector*			m_pUserSelector;
 };
 
 #endif // _USERSELECTOR_VIEWER_H_

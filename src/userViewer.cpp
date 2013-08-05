@@ -43,6 +43,9 @@ UserViewer::UserViewer(const char* strName)
 	m_pUserTracker = new nite::UserTracker;
 	m_pHandTracker = new nite::HandTracker;
 	
+	m_pUserTrackerFrame = new nite::UserTrackerFrameRef;
+	m_pHandTrackerFrame = new nite::HandTrackerFrameRef;
+	
 	m_activeUserId = 0;
 	m_exitPosingUser = 0;
 	m_exitPoseTime = 0;
@@ -59,6 +62,9 @@ UserViewer::~UserViewer()
 
 void UserViewer::Finalize()
 {
+	delete m_pHandTrackerFrame;
+	delete m_pUserTrackerFrame;
+	
 	m_pHandTracker->destroy();
 	m_pUserTracker->destroy();
 
@@ -70,7 +76,7 @@ void UserViewer::Finalize()
 	ros::shutdown();	
 }
 
-openni::Status UserViewer::init(int argc, char** argv)
+openni::Status UserViewer::init(int argc, char** argv, UserSelector* pUserSelectorObj)
 {
 	m_pTexMap = NULL;
 	ros::init(argc, argv, "openni2_user_selection");
@@ -100,6 +106,12 @@ openni::Status UserViewer::init(int argc, char** argv)
 		return rc;
 	}
 	
+	//TODO:
+	// m_pUserSelector = pUserSelectorObj;
+	// m_pUserSelector->init(argc, argv, &m_device);
+	// FINISH THE REST!!
+	//TODO: do we need to pass also tracker and frame objects?
+	
 	nite::NiTE::initialize();
 	
 	if (m_pUserTracker->create(&m_device) != nite::STATUS_OK)
@@ -113,7 +125,7 @@ openni::Status UserViewer::init(int argc, char** argv)
 		ROS_ERROR("Failed to create Hand Tracker");
 		return openni::STATUS_ERROR;
 	}
-	
+
 	
 	return InitOpenGL(argc, argv);
 }
@@ -121,8 +133,6 @@ openni::Status UserViewer::init(int argc, char** argv)
 openni::Status UserViewer::run()
 {
 	ROS_INFO("Start moving around to get detected");
-	//TODO: need switch for this, so it can be put inside DisplayCallback
-	m_pHandTracker->startGestureDetection(nite::GESTURE_WAVE);
 	
 	glutMainLoop();
 	return openni::STATUS_OK;
@@ -131,6 +141,7 @@ openni::Status UserViewer::run()
 float Colors[][3] = {{1, 0, 0}, {0, 1, 0}, {0, 0, 1}, {1, 1, 1}};
 int colorCount = 3;
 
+//TODO: most of these could be moved to userSelector.cpp
 #define MAX_USERS 10
 bool g_visibleUsers[MAX_USERS] = {false};
 nite::SkeletonState g_skeletonStates[MAX_USERS] = {nite::SKELETON_NONE};
@@ -143,8 +154,10 @@ char g_generalMessage[100] = {0};
 	ROS_INFO("User #%d: %s", user.getId(), msg);\
 	}
 
+//TODO: this would be no longer needed
 void UserViewer::updateUserState(const nite::UserData& user, unsigned long long ts)
 {
+	
 	if (user.isNew())
 	{
 		USER_MESSAGE("New");
@@ -187,6 +200,7 @@ void UserViewer::updateUserState(const nite::UserData& user, unsigned long long 
 			break;
 		}
 	}
+	
 }
 
 #ifndef USE_GLES
@@ -212,6 +226,7 @@ void DrawStatusLabel(nite::UserTracker* pUserTracker, const nite::UserData& user
 	y *= GL_WIN_SIZE_Y / (float)g_nYRes;
 	
 	char *msg = g_userStatusLabels[user.getId()];
+	//char *msg = "aa";
 	glRasterPos2i(x - ((strlen(msg)/2)*8), y);
 	glPrintString(GLUT_BITMAP_HELVETICA_18, msg);
 }
@@ -316,46 +331,39 @@ nite::UserId UserViewer::getUserIdFromPixel(nite::Point3f position, const nite::
 
 void UserViewer::updateFrame()
 {
-	//TODO: 
-	// - test if non GUI routine can be moved here
-}
-
-void UserViewer::DisplayCallback()
-{
-	//TODO: this needs to be pointer
-	nite::UserTrackerFrameRef userTrackerFrame;
-	nite::HandTrackerFrameRef handTrackerFrame;
-	
-	//TODO: this stays here
-	openni::VideoFrameRef depthFrame;
-	
+	//TODO: inside this would be m_pUserSelector->updateFrame();
 	nite::Status rc;
 
-	rc = m_pHandTracker->readFrame(&handTrackerFrame);
+	
+	rc = m_pHandTracker->readFrame(m_pHandTrackerFrame);
 	if (rc != nite::STATUS_OK)
 	{
 		ROS_ERROR("HandTracker read frame failed");
 		return;
 	}
 	
-	rc = m_pUserTracker->readFrame(&userTrackerFrame);
+	rc = m_pUserTracker->readFrame(m_pUserTrackerFrame);
 	if (rc != nite::STATUS_OK)
 	{
 		ROS_ERROR("UserTracker read frame failed!");
 		return;
 	}
-	
-	depthFrame = userTrackerFrame.getDepthFrame();
+}
 
-
+void UserViewer::detectionRoutine()
+{
+	//TODO: inside this would be m_pUserSelector->detectionRoutine();
 	// user detection routine
+	m_pHandTracker->startGestureDetection(nite::GESTURE_WAVE);
 	
-	const nite::Array<nite::UserData>& users = userTrackerFrame.getUsers();
+	//const nite::Array<nite::UserData>& users = userTrackerFrame.getUsers();
+	const nite::Array<nite::UserData>& users = m_pUserTrackerFrame->getUsers();
 	nite::UserId gesturingUserId;
 	
 	if (users.getSize() > 0)
 	{
-		const nite::Array<nite::GestureData>& gestures = handTrackerFrame.getGestures();
+		//const nite::Array<nite::GestureData>& gestures = handTrackerFrame.getGestures();
+		const nite::Array<nite::GestureData>& gestures = m_pHandTrackerFrame->getGestures();
 		
 		for (int i = 0; i < gestures.getSize(); ++i)
 		{
@@ -366,10 +374,11 @@ void UserViewer::DisplayCallback()
 			else if (gestures[i].isComplete() && gestures[i].getType() == nite::GESTURE_WAVE)
 			{
 
-				gesturingUserId = getUserIdFromPixel(gestures[i].getCurrentPosition(), userTrackerFrame.getUserMap());
+				//gesturingUserId = getUserIdFromPixel(gestures[i].getCurrentPosition(), userTrackerFrame.getUserMap());
+				gesturingUserId = getUserIdFromPixel(gestures[i].getCurrentPosition(), m_pUserTrackerFrame->getUserMap());
 				ROS_INFO("gesture finished from id = %d", gesturingUserId);
 				
-				const nite::UserData* userTmp = userTrackerFrame.getUserById(gesturingUserId);
+				const nite::UserData* userTmp = m_pUserTrackerFrame->getUserById(gesturingUserId);
 					
 				if (m_activeUserId == 0 && userTmp->getSkeleton().getState() == nite::SKELETON_NONE)
 				{
@@ -405,6 +414,39 @@ void UserViewer::DisplayCallback()
 
 
 // =================================================================
+	for (int i = 0; i < users.getSize(); ++i)
+	{
+		const nite::UserData& user = users[i];
+		//updateUserState(user, userTrackerFrame.getTimestamp());
+		updateUserState(user, m_pUserTrackerFrame->getTimestamp());
+		
+		if (user.isNew())
+		{
+			// things here will be called only once for each user
+			//TODO: maybe put startGestureDetection here? --> not a good idea, it will call it for each user
+		}
+		else if (!user.isLost())
+		{
+			// things here for when user is present on the FOV
+			DrawStatusLabel(m_pUserTracker, user);
+			
+			if (users[i].getSkeleton().getState() == nite::SKELETON_TRACKED)
+				DrawSkeleton(m_pUserTracker, user);
+		}
+	}
+}
+
+void UserViewer::DisplayCallback()
+{
+	//TODO: this stays here
+	openni::VideoFrameRef depthFrame;
+	
+	nite::Status rc;
+	updateFrame();
+	
+	//TODO: pUserTrackerFrame = m_pUserSelector->getUserTrackerFrame();
+	
+	depthFrame = m_pUserTrackerFrame->getDepthFrame();
 
 	if (m_pTexMap == NULL)
 	{
@@ -414,7 +456,8 @@ void UserViewer::DisplayCallback()
 		m_pTexMap = new openni::RGB888Pixel[m_nTexMapX * m_nTexMapY];
 	}
 	
-	const nite::UserMap& userLabels = userTrackerFrame.getUserMap();
+	//const nite::UserMap& userLabels = userTrackerFrame.getUserMap();
+	const nite::UserMap& userLabels = m_pUserTrackerFrame->getUserMap();
 	
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	
@@ -511,27 +554,7 @@ void UserViewer::DisplayCallback()
 	glEnd();
 	glDisable(GL_TEXTURE_2D);
 	
-	
-		
-	for (int i = 0; i < users.getSize(); ++i)
-	{
-		const nite::UserData& user = users[i];
-		updateUserState(user, userTrackerFrame.getTimestamp());
-		
-		if (user.isNew())
-		{
-			// things here will be called only once for each user
-			//TODO: maybe put startGestureDetection here? --> not a good idea, it will call it for each user
-		}
-		else if (!user.isLost())
-		{
-			// things here for when user is present on the FOV
-			DrawStatusLabel(m_pUserTracker, user);
-			
-			if (users[i].getSkeleton().getState() == nite::SKELETON_TRACKED)
-				DrawSkeleton(m_pUserTracker, user);
-		}
-	}
+	detectionRoutine();
 	
 	glutSwapBuffers();
 }

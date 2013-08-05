@@ -4,11 +4,14 @@
  * - need to learn more about OpenGL
  * 
  * TODO:
- * - GUI
- * - stop tracking pose/gesture
  * - wrap activeUser object/variable
  * - review the whole scenario
  * - ROS joints publishing
+ * 
+ * DONE:
+ * - GUI
+ * - stop tracking pose/gesture
+ * 
  */
 
 #define USE_GUI
@@ -52,3 +55,5 @@ int main(int argc, char** argv)
 #endif
 	return 0;
 }
+
+
