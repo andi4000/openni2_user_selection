@@ -1,11 +1,14 @@
 /**
  * TODO:
+ * 
+ * NOTES:
+ * init should be called once. if GUI is used, pass the userSelector object to userViewer 
+ * then initialize userSelector inside userViewer
+ * 
+ * DONE:
  * make this class as an object that can be run independently for text-based interface
  * then this object could be passed to the userViewer as backbone for the GUI
  * 
- * notes:
- * init should be called once. if GUI is used, pass the userSelector object to userViewer 
- * then initialize userSelector inside userViewer
  */
 
 #include "userSelector.h"
@@ -56,7 +59,7 @@ UserSelector::~UserSelector()
 	nite::NiTE::shutdown();
 	ros::shutdown();
 }
-/**
+
 bool g_visibleUsers[MAX_USERS] = {false};
 nite::SkeletonState g_skeletonStates[MAX_USERS] = {nite::SKELETON_NONE};
 char g_userStatusLabels[MAX_USERS][100] = {{0}};
@@ -67,13 +70,13 @@ char g_generalMessage[100] = {0};
 	sprintf(g_userStatusLabels[user.getId()], "%s", msg);\
 	ROS_INFO("User #%d: %s", user.getId(), msg);\
 	}
-*/
+
 //TODO: multiple global var declaration, fix!
 
 void UserSelector::updateUserState(const nite::UserData& user, unsigned long long ts)
 {
 	//TODO: fix this
-	/**
+	
 	if (user.isNew())
 	{
 		USER_MESSAGE("New");
@@ -116,19 +119,19 @@ void UserSelector::updateUserState(const nite::UserData& user, unsigned long lon
 			break;
 		}
 	}
-	*/
+	
 }
 
 char* UserSelector::getUserStatusLabel(nite::UserId id)
 {
-	//return g_userStatusLabels[id];
+	return g_userStatusLabels[id];
 }
 
 nite::UserId UserSelector::getUserIdFromPixel(nite::Point3f position, const nite::UserMap& userMap)
 {
 	float x,y;
 	m_pUserTracker->convertJointCoordinatesToDepth(position.x, position.y, position.z, &x, &y);
-	ROS_INFO("Rx = %.2f Ry = %.2f Rz = %.2f", position.x, position.y, position.z);
+	//ROS_INFO("Rx = %.2f Ry = %.2f Rz = %.2f", position.x, position.y, position.z);
 	const nite::UserId* pLabels = userMap.getPixels();
 	nite::UserId userId = 0;
 	
@@ -235,6 +238,7 @@ void UserSelector::detectionRoutine()
 		//TODO: exit pose
 	}
 
+	//TODO: need to redesign this part, how can we pass info about which user whose skeleton we draw 
 	for (int i = 0; i < users.getSize(); ++i)
 	{
 		const nite::UserData& user = users[i];
@@ -252,7 +256,7 @@ void UserSelector::detectionRoutine()
 			//DrawStatusLabel(m_pUserTracker, user);
 			
 			//if (users[i].getSkeleton().getState() == nite::SKELETON_TRACKED)
-				//DrawSkeleton(m_pUserTracker, user);
+				//publishTransforms(user, "openni_depth_frame");
 		}
 	}
 }
@@ -275,4 +279,42 @@ nite::UserTracker* UserSelector::getUserTracker()
 nite::HandTracker* UserSelector::getHandTracker()
 {
 	return m_pHandTracker;
+}
+
+void UserSelector::publishTransform(const nite::UserData& user, nite::JointType jointType, const std::string& frame_id, const std::string& child_frame_id)
+{
+	static tf::TransformBroadcaster br;
+	
+	const nite::SkeletonJoint& joint = user.getSkeleton().getJoint(jointType);
+	double x = joint.getPosition().x / 1000.0;
+	double y = joint.getPosition().y / 1000.0;
+	double z = joint.getPosition().z / 1000.0;
+	
+	//TODO: finish this
+	
+	// - get orientation in quarternion
+	// - publish 
+}
+
+void UserSelector::publishTransforms(const nite::UserData& user, const std::string& frame_id)
+{
+	publishTransform(user, nite::JOINT_HEAD, frame_id, "head");
+	publishTransform(user, nite::JOINT_NECK, frame_id, "neck");
+	publishTransform(user, nite::JOINT_TORSO, frame_id, "torso");
+	
+	publishTransform(user, nite::JOINT_LEFT_SHOULDER, frame_id, "left_shoulder");
+	publishTransform(user, nite::JOINT_LEFT_ELBOW, frame_id, "left_elbow");
+	publishTransform(user, nite::JOINT_LEFT_HAND, frame_id, "left_hand");
+
+	publishTransform(user, nite::JOINT_LEFT_HIP, frame_id, "left_hip");
+	publishTransform(user, nite::JOINT_LEFT_KNEE, frame_id, "left_knee");
+	publishTransform(user, nite::JOINT_LEFT_FOOT, frame_id, "left_foot");
+	
+	publishTransform(user, nite::JOINT_RIGHT_SHOULDER, frame_id, "right_shoulder");
+	publishTransform(user, nite::JOINT_RIGHT_ELBOW, frame_id, "right_elbow");
+	publishTransform(user, nite::JOINT_RIGHT_HAND, frame_id, "right_hand");
+	
+	publishTransform(user, nite::JOINT_RIGHT_HIP, frame_id, "right_hip");
+	publishTransform(user, nite::JOINT_RIGHT_KNEE, frame_id, "right_knee");
+	publishTransform(user, nite::JOINT_RIGHT_FOOT, frame_id, "right_foot");
 }

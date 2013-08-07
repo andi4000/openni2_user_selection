@@ -1,59 +1,61 @@
 /**
  * NOTE:
- * - for now, GUI and text based are independently separated, switch by #define USE_GUI
- * - need to learn more about OpenGL
  * 
  * TODO:
- * - wrap activeUser object/variable
+ * - change start method, from wave to psi pose
  * - review the whole scenario
  * - ROS joints publishing
  * 
  * DONE:
+ * - wrap activeUser object/variable --> cancelled
  * - GUI
  * - stop tracking pose/gesture
+ * - for now, GUI and text based are independently separated, switch by #define USE_GUI
  * 
  */
 
-#define USE_GUI
-#ifdef USE_GUI
-	#include "userViewer.h"
-#else
-	#include "userSelector.h"
-#endif
+#include "userViewer.h"
+#include "userSelector.h"
 
-int main(int argc, char** argv)
+int main (int argc, char** argv)
 {
-
-#ifdef USE_GUI
-	openni::Status rc = openni::STATUS_OK;
+	bool bGUI = true;
 	
-	UserViewer *userViewer = new UserViewer("User Viewer");
-	rc = userViewer->init(argc, argv);
-	if (rc != openni::STATUS_OK)
-	{
-		ROS_ERROR("Couldn't initialize GUI");
-		return 1;
-	}
-	userViewer->run();
+	//woot, can't use argv for gui switch
+	//if (argc > 1 && strcmp(argv[2], "-gui") == 0)
 	
-	delete userViewer;
-#else
-	nite::Status rc = nite::STATUS_OK;
-
 	UserSelector *userSelector = new UserSelector();
 	
-	rc = userSelector->init(argc, argv);
-	if (rc != nite::STATUS_OK)
+	if (bGUI)
 	{
-		ROS_ERROR("Couldn't create user tracker!");
-		return 1;
+		openni::Status rc = openni::STATUS_OK;
+		
+		UserViewer *userViewer = new UserViewer("User Viewer");
+		rc = userViewer->init(argc, argv, userSelector);
+		if (rc != openni::STATUS_OK)
+		{
+			ROS_ERROR("Couldn't init UserViewer in GUI mode!");
+			return 1;
+		}
+		ROS_WARN("Starting User Selection GUI");
+		userViewer->run(); // loop until exit
+		
+		delete userViewer; // just to be safe
+	}
+	else
+	{
+		nite::Status rc = nite::STATUS_OK;
+		rc = userSelector->init(argc, argv);
+		if (rc != nite::STATUS_OK)
+		{
+			ROS_ERROR("Couldn't init UserSelector!");
+			return 1;
+		}
+		ROS_WARN("Starting User Selection in text mode..");		
+		userSelector->run(); // loop until SIGINT
 	}
 	
-	userSelector->run(); // loop until SIGINT
-
-	delete userSelector;
-#endif
+	delete userSelector; // just to be safe
+	
 	return 0;
 }
-
-

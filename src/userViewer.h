@@ -39,12 +39,6 @@ private:
 	static void glutDisplay();
 	static void glutKeyboard(unsigned char key, int x, int y);
 	
-	void updateUserState(const nite::UserData& user, unsigned long long ts);
-	nite::UserId getUserIdFromPixel(nite::Point3f position, const nite::UserMap& userMap);
-
-	nite::UserTrackerFrameRef* m_pUserTrackerFrame;
-	nite::HandTrackerFrameRef* m_pHandTrackerFrame;
-	
 	float 					m_pDepthHist[MAX_DEPTH];
 	char 					m_strSampleName[ONI_MAX_STR];
 	openni::RGB888Pixel* 	m_pTexMap;
@@ -52,17 +46,9 @@ private:
 	unsigned int 			m_nTexMapY;
 	
 	openni::Device 			m_device;
-	nite::UserTracker* 		m_pUserTracker;
-	nite::HandTracker* 		m_pHandTracker;
-	ros::NodeHandle*		m_pNodeHandle;
-	nite::UserId			m_activeUserId;
-	nite::UserId			m_gesturingUser;
-	//const nite::UserData*	m_pActiveUserData;
 	
-	nite::UserId			m_exitPosingUser;
-	uint64_t				m_exitPoseTime;
-	
-	UserSelector*			m_pUserSelector;
+	nite::UserTrackerFrameRef* 		m_pUserTrackerFrame;	
+	UserSelector*					m_pUserSelector;
 };
 
 #endif // _USERSELECTOR_VIEWER_H_
