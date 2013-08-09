@@ -7,6 +7,13 @@
 #endif
 */
 
+/**
+ * TODO:
+ * - redesign detectionRoutine(), the skeleton and label drawing trigger
+ * 
+ * 
+ */
+
 #include "userViewer.h"
 #include <GL/glut.h>
 #include "NiteSampleUtilities.h"
@@ -241,7 +248,6 @@ void UserViewer::detectionRoutine()
 
 void UserViewer::DisplayCallback()
 {
-	//TODO: this stays here
 	openni::VideoFrameRef depthFrame;
 	
 	nite::Status rc;

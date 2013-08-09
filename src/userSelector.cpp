@@ -1,8 +1,11 @@
 /**
  * TODO:
+ * - fix joint rotation publishing
  * 
  * NOTES:
- * init should be called once. if GUI is used, pass the userSelector object to userViewer 
+ * - foot joint (left and right) wont be exist if it's not visible in camera FOV, hence ROS' tf will be NaN
+ * 
+ * - init should be called once. if GUI is used, pass the userSelector object to userViewer 
  * then initialize userSelector inside userViewer
  * 
  * DONE:
@@ -71,12 +74,8 @@ char g_generalMessage[100] = {0};
 	ROS_INFO("User #%d: %s", user.getId(), msg);\
 	}
 
-//TODO: multiple global var declaration, fix!
-
 void UserSelector::updateUserState(const nite::UserData& user, unsigned long long ts)
 {
-	//TODO: fix this
-	
 	if (user.isNew())
 	{
 		USER_MESSAGE("New");
@@ -102,7 +101,12 @@ void UserSelector::updateUserState(const nite::UserData& user, unsigned long lon
 		switch(g_skeletonStates[user.getId()] = user.getSkeleton().getState())
 		{
 		case nite::SKELETON_NONE:
-			USER_MESSAGE("Stopped tracking.")
+			USER_MESSAGE("Stopped tracking.");
+			if (user.getId() == m_activeUserId)
+			{
+				m_activeUserId = 0;
+				ROS_WARN("User #%d: No longer active", user.getId());
+			}
 			break;
 		case nite::SKELETON_CALIBRATING:
 			USER_MESSAGE("Calibrating...")
@@ -115,7 +119,7 @@ void UserSelector::updateUserState(const nite::UserData& user, unsigned long lon
 		case nite::SKELETON_CALIBRATION_ERROR_LEGS:
 		case nite::SKELETON_CALIBRATION_ERROR_HEAD:
 		case nite::SKELETON_CALIBRATION_ERROR_TORSO:
-			USER_MESSAGE("Calibration Failed... :-|")
+			USER_MESSAGE("Calibration Failed!")
 			break;
 		}
 	}
@@ -182,13 +186,11 @@ void UserSelector::detectionRoutine()
 	// user detection routine
 	m_pHandTracker->startGestureDetection(nite::GESTURE_WAVE);
 	
-	//const nite::Array<nite::UserData>& users = userTrackerFrame.getUsers();
 	const nite::Array<nite::UserData>& users = m_pUserTrackerFrame->getUsers();
 	nite::UserId gesturingUserId;
 	
 	if (users.getSize() > 0)
 	{
-		//const nite::Array<nite::GestureData>& gestures = handTrackerFrame.getGestures();
 		const nite::Array<nite::GestureData>& gestures = m_pHandTrackerFrame->getGestures();
 		
 		for (int i = 0; i < gestures.getSize(); ++i)
@@ -200,7 +202,6 @@ void UserSelector::detectionRoutine()
 			else if (gestures[i].isComplete() && gestures[i].getType() == nite::GESTURE_WAVE)
 			{
 
-				//gesturingUserId = getUserIdFromPixel(gestures[i].getCurrentPosition(), userTrackerFrame.getUserMap());
 				gesturingUserId = getUserIdFromPixel(gestures[i].getCurrentPosition(), m_pUserTrackerFrame->getUserMap());
 				ROS_INFO("gesture finished from id = %d", gesturingUserId);
 				
@@ -255,8 +256,8 @@ void UserSelector::detectionRoutine()
 			// things here for when user is present on the FOV
 			//DrawStatusLabel(m_pUserTracker, user);
 			
-			//if (users[i].getSkeleton().getState() == nite::SKELETON_TRACKED)
-				//publishTransforms(user, "openni_depth_frame");
+			if (users[i].getSkeleton().getState() == nite::SKELETON_TRACKED)
+				publishTransforms(user, "openni_depth_frame");
 		}
 	}
 }
@@ -286,14 +287,42 @@ void UserSelector::publishTransform(const nite::UserData& user, nite::JointType 
 	static tf::TransformBroadcaster br;
 	
 	const nite::SkeletonJoint& joint = user.getSkeleton().getJoint(jointType);
-	double x = joint.getPosition().x / 1000.0;
-	double y = joint.getPosition().y / 1000.0;
-	double z = joint.getPosition().z / 1000.0;
+	float x = joint.getPosition().x / 1000.0;
+	float y = joint.getPosition().y / 1000.0;
+	float z = joint.getPosition().z / 1000.0;
 	
+	//ROS_INFO("x, y, z = %.2f, %.2f, %.2f", x, y, z);
 	//TODO: finish this
-	
-	// - get orientation in quarternion
+	// - get orientation in quarternion --> unlike OpenNI 1.5, in NiTE2, orientation is already represented in quaternion
+	// - check orientation values and sign! compare with result from OpenNI1
 	// - publish 
+	
+	float qx = joint.getOrientation().x;
+	float qy = joint.getOrientation().y;
+	float qz = joint.getOrientation().z;
+	float qw = joint.getOrientation().w;
+	
+	ROS_INFO("%s (qx, qy, qz, qw) = %.4f, %.4f, %.4f", child_frame_id.c_str(), qx, qy, qz, qw);
+	
+	char child_frame_no[128];
+	snprintf(child_frame_no, sizeof(child_frame_no), "%s_%d", child_frame_id.c_str(), user.getId());
+	
+	tf::Transform transform;
+	transform.setOrigin(tf::Vector3(x, y, z));
+	transform.setRotation(tf::Quaternion(qx, -qy, -qz, qw));
+	
+	// from ROS user tracker
+	tf::Transform change_frame;
+	change_frame.setOrigin(tf::Vector3(0, 0, 0));
+	tf::Quaternion frame_rotation;
+	frame_rotation.setEulerZYX(1.5708, 0, 1.5708); // 90° in radian
+	change_frame.setRotation(frame_rotation);
+	
+	transform = change_frame * transform;
+	
+	br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), frame_id, child_frame_no));
+	
+	
 }
 
 void UserSelector::publishTransforms(const nite::UserData& user, const std::string& frame_id)
