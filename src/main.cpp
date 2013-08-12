@@ -2,11 +2,11 @@
  * NOTE:
  * 
  * TODO:
- * - change start method, from wave to psi pose
  * - review the whole scenario
- * - ROS joints publishing
+ * - ROS joint orientation calculation
  * 
  * DONE:
+ * - change start method, from wave to psi pose
  * - wrap activeUser object/variable --> cancelled
  * - GUI
  * - stop tracking pose/gesture
