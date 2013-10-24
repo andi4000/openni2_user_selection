@@ -13,12 +13,14 @@ set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 
 # OpenNI2
-link_directories(${OPENNI2_DIR}/Redist)
-include_directories(${OPENNI2_DIR}/Include)
+#link_directories(${OPENNI2_DIR}/Redist)
+#include_directories(${OPENNI2_DIR}/Include)
+link_directories($ENV{OPENNI2_REDIST})
+include_directories($ENV{OPENNI2_INCLUDE})
 
 # NiTE2
-link_directories(${NITE2_DIR}/Redist)
-include_directories(${NITE2_DIR}/Include)
+link_directories($ENV{NITE2_REDIST})
+include_directories($ENV{NITE2_INCLUDE})
 
 # OpenGL
 include(FindGLUT)
