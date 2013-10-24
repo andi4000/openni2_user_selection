@@ -107,7 +107,7 @@ openni::Status UserViewer::run()
 {
 	ROS_INFO("Start moving around to get detected");
 	
-	glutMainLoop();
+	glutMainLoop();	// looping on DisplayCallback, never return
 	return openni::STATUS_OK;
 }
 

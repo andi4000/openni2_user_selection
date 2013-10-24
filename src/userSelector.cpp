@@ -2,6 +2,7 @@
  * TODO:
  * - fix joint rotation publishing
  * - also publish joint position in camera coordinate system
+ * - organize topic names
  * 
  * NOTES:
  * - foot joint (left and right) wont be exist if it's not visible in camera FOV, hence ROS' tf will be NaN
@@ -47,6 +48,15 @@ nite::Status UserSelector::init(int argc, char** argv, openni::Device* pDevice)
 		
 	m_activeUserId = 0;
 	
+	// ROS message
+	//TODO
+	m_pPub_ActiveUserPresent = new ros::Publisher();
+	m_pPub_ActiveUserVisible = new ros::Publisher();
+	
+	*m_pPub_ActiveUserPresent = m_pNodeHandle->advertise<std_msgs::Bool>("/openni2_user_selection/activeUserPresent", 1000);
+	*m_pPub_ActiveUserVisible = m_pNodeHandle->advertise<std_msgs::Bool>("/openni2_user_selection/activeUserVisible", 1000);
+	m_pRate = new ros::Rate(40);
+	
 	return nite::STATUS_OK; 
 }
 
@@ -62,6 +72,10 @@ UserSelector::~UserSelector()
 	
 	nite::NiTE::shutdown();
 	ros::shutdown();
+	
+	//TODO: is this necessary?
+	delete m_pRate;
+	delete m_pPub_ActiveUserPresent;
 }
 
 bool g_visibleUsers[MAX_USERS] = {false};
@@ -184,6 +198,10 @@ void UserSelector::updateFrame()
 
 void UserSelector::detectionRoutine()
 {
+	// ROS message
+	std_msgs::Bool msg_ActiveUserPresent;
+	std_msgs::Bool msg_ActiveUserVisible;
+	
 	bool bUseWaveAsFocus = false;
 	// user detection routine
 	m_pHandTracker->startGestureDetection(nite::GESTURE_WAVE);
@@ -277,6 +295,18 @@ void UserSelector::detectionRoutine()
 			}
 		}
 	}
+	
+	// ROS message
+	msg_ActiveUserPresent.data = (bool)m_activeUserId;
+	msg_ActiveUserVisible.data = g_visibleUsers[m_activeUserId];
+	
+	m_pPub_ActiveUserPresent->publish(msg_ActiveUserPresent);
+	m_pPub_ActiveUserVisible->publish(msg_ActiveUserVisible);
+	
+	ros::spinOnce();
+	m_pRate->sleep();
+	// ROS message
+	
 }
 
 nite::UserTrackerFrameRef* UserSelector::getUserTrackerFrame()

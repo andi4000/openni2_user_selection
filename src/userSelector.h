@@ -6,6 +6,8 @@
 #include "tf/transform_broadcaster.h"
 #include "kdl/frames.hpp"
 
+#include "std_msgs/Bool.h"
+
 #include "NiTE.h"
 
 #define MAX_USERS 10
@@ -48,6 +50,9 @@ class UserSelector
 		nite::HandTracker* 				m_pHandTracker;
 		
 		ros::NodeHandle* 				m_pNodeHandle;
+		ros::Rate*						m_pRate;
+		ros::Publisher*					m_pPub_ActiveUserPresent;
+		ros::Publisher*					m_pPub_ActiveUserVisible;
 		nite::UserId					m_activeUserId;
 		nite::UserId					m_gesturingUser;
 };
