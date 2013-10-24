@@ -1,8 +1,10 @@
 cmake_minimum_required(VERSION 2.4.6)
 include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
 
-set(OPENNI2_DIR /home/ariandy/src/OpenNI-Linux-x64-2.2/)
-set(NITE2_DIR /home/ariandy/src/NiTE-Linux-x64-2.2/)
+# define this here or in .bashrc
+# NOTE: youbot ubuntu is 32bit!!!!!!!!!!!!1
+#set(OPENNI2_DIR /home/ariandy/src/OpenNI-Linux-x64-2.2/)
+#set(NITE2_DIR /home/ariandy/src/NiTE-Linux-x64-2.2/)
 rosbuild_init()
 
 #set the default path for built executables to the "bin" directory
