@@ -196,6 +196,15 @@ void UserSelector::updateFrame()
 	
 }
 
+float g_prevConfidence = 0;
+void updateConfidencePrint(float curValue)
+{
+	if (curValue != g_prevConfidence && curValue != 0)
+		ROS_INFO("Torso joint confidence level = %.0f %%", curValue*100);
+		
+	g_prevConfidence = curValue;
+}
+
 void UserSelector::detectionRoutine()
 {
 	// ROS message
@@ -282,10 +291,7 @@ void UserSelector::detectionRoutine()
 			if (users[i].getSkeleton().getState() == nite::SKELETON_TRACKED)
 			{
 				publishTransforms(user, "openni_depth_frame");
-				
-				float confidence = users[i].getSkeleton().getJoint(nite::JOINT_TORSO).getPositionConfidence();
-				if (confidence > 0.3)
-					ROS_INFO("torso confidence level = %.0f %%", confidence*100);
+				updateConfidencePrint(users[i].getSkeleton().getJoint(nite::JOINT_TORSO).getPositionConfidence());
 			}
 		}
 		
