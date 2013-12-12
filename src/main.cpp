@@ -53,6 +53,7 @@ int main (int argc, char** argv)
 			return 1;
 		}
 		ROS_WARN("Starting User Selection in text mode..");		
+		ROS_WARN("use \"-gui\" switch to start in GUI mode ");		
 		userSelector->run(); // loop until SIGINT
 	}
 	
