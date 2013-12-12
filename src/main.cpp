@@ -19,10 +19,11 @@
 
 int main (int argc, char** argv)
 {
-	bool bGUI = true;
+	bool bGUI = false;
 	
-	//woot, can't use argv for gui switch
-	//if (argc > 1 && strcmp(argv[2], "-gui") == 0)
+	if (argc > 1 && strcmp(argv[1], "-gui") == 0){
+		bGUI = true;	
+	}
 	
 	UserSelector *userSelector = new UserSelector();
 	

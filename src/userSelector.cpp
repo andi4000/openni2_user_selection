@@ -280,7 +280,13 @@ void UserSelector::detectionRoutine()
 			//DrawStatusLabel(m_pUserTracker, user);
 			
 			if (users[i].getSkeleton().getState() == nite::SKELETON_TRACKED)
+			{
 				publishTransforms(user, "openni_depth_frame");
+				
+				float confidence = users[i].getSkeleton().getJoint(nite::JOINT_TORSO).getPositionConfidence();
+				if (confidence > 0.3)
+					ROS_INFO("torso confidence level = %.0f %%", confidence*100);
+			}
 		}
 		
 		if (!bUseWaveAsFocus && m_activeUserId == 0)
