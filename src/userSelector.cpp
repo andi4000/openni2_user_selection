@@ -55,7 +55,7 @@ nite::Status UserSelector::init(int argc, char** argv, openni::Device* pDevice)
 	
 	*m_pPub_ActiveUserPresent = m_pNodeHandle->advertise<std_msgs::Bool>("/openni2_user_selection/activeUserPresent", 1000);
 	*m_pPub_ActiveUserVisible = m_pNodeHandle->advertise<std_msgs::Bool>("/openni2_user_selection/activeUserVisible", 1000);
-	m_pRate = new ros::Rate(40);
+	m_pRate = new ros::Rate(50);
 	
 	return nite::STATUS_OK; 
 }
