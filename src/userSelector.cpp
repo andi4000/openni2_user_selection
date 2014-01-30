@@ -84,6 +84,10 @@ char g_userStatusLabels[MAX_USERS][100] = {{0}};
 
 char g_generalMessage[100] = {0};
 
+// timer
+ros::Time g_time_calibrationBegin;
+ros::Duration g_duration_calibrationFinish;
+
 #define USER_MESSAGE(msg) {\
 	sprintf(g_userStatusLabels[user.getId()], "%s", msg);\
 	ROS_INFO("User #%d: %s", user.getId(), msg);\
@@ -124,10 +128,13 @@ void UserSelector::updateUserState(const nite::UserData& user, unsigned long lon
 			}
 			break;
 		case nite::SKELETON_CALIBRATING:
-			USER_MESSAGE("Calibrating...")
+			USER_MESSAGE("Calibrating...");
 			break;
 		case nite::SKELETON_TRACKED:
-			USER_MESSAGE("Tracking!")
+			USER_MESSAGE("Tracking!");
+			// timer
+			g_duration_calibrationFinish = ros::Time::now() - g_time_calibrationBegin;
+			ROS_WARN("Calibration took %.2f seconds", g_duration_calibrationFinish.toSec());
 			break;
 		case nite::SKELETON_CALIBRATION_ERROR_NOT_IN_POSE:
 		case nite::SKELETON_CALIBRATION_ERROR_HANDS:
@@ -303,6 +310,9 @@ void UserSelector::detectionRoutine()
 				ROS_INFO("User #%d: Psi pose detected!", user.getId());
 				m_activeUserId = user.getId();
 				m_pUserTracker->startSkeletonTracking(user.getId());
+				
+				// timer
+				g_time_calibrationBegin = ros::Time::now();
 				
 			}
 		}
