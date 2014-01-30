@@ -87,6 +87,7 @@ char g_generalMessage[100] = {0};
 // timer
 ros::Time g_time_calibrationBegin;
 ros::Duration g_duration_calibrationFinish;
+ros::Duration g_duration_calibrationLevel;
 
 #define USER_MESSAGE(msg) {\
 	sprintf(g_userStatusLabels[user.getId()], "%s", msg);\
@@ -206,9 +207,10 @@ void UserSelector::updateFrame()
 float g_prevConfidence = 0;
 void updateConfidencePrint(float curValue)
 {
-	if (curValue != g_prevConfidence && curValue != 0)
-		ROS_INFO("Torso joint confidence level = %.0f %%", curValue*100);
-		
+	if (curValue != g_prevConfidence && curValue != 0){
+		g_duration_calibrationLevel = ros::Time::now() - g_time_calibrationBegin;		
+		ROS_INFO("Torso joint confidence level = %.0f %%, took %.2f seconds", curValue*100, g_duration_calibrationLevel.toSec());
+	}
 	g_prevConfidence = curValue;
 }
 
